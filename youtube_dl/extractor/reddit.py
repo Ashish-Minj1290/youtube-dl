@@ -50,7 +50,7 @@ class RedditIE(InfoExtractor):
 
 
 class RedditRIE(InfoExtractor):
-    _VALID_URL = r'(?P<url>https?://(?:[^/]+\.)?reddit\.com/r/[^/]+/comments/(?P<id>[^/?#&]+))'
+    _VALID_URL = r'(?P<url>https?://(?:[^/]+\.)?reddit\.com/r/[^/]+/comments/(?P<id>[^/?#&]+)(?:/(?P<slug>[^/?#&]+))?)'
     _TESTS = [{
         'url': 'https://www.reddit.com/r/videos/comments/6rrwyj/that_small_heart_attack/',
         'info_dict': {
@@ -110,14 +110,14 @@ class RedditRIE(InfoExtractor):
 
     def _real_extract(self, url):
         mobj = re.match(self._VALID_URL, url)
-        url, video_id = mobj.group('url', 'id')
+        url, video_id, slug = mobj.group('url', 'id', 'slug')
 
         video_id = self._match_id(url)
 
         # Fallback for if old reddit session request failed.
         if not self._is_logged_in and not self._get_cookies('https://www.reddit.com/').get('loid'):
             self._request_webpage(
-                'https://www.reddit.com/svc/shreddit/%s' % mobj.group('id'), video_id,
+                'https://www.reddit.com/svc/shreddit/%s' % (slug or video_id), video_id,
                 'Setting up session via shreddit', 'Session request failed', fatal=False,
                 query={
                     'seeker-session': 'false',
