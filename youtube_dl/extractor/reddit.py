@@ -103,7 +103,7 @@ class RedditRIE(InfoExtractor):
 
     def _real_initialize(self):
         if not self._is_logged_in:
-            # Reddit sets a `loid` cookie for anonymous API access.
+            # We need a 'loid' cookie to access the API anonymously.
             self._request_webpage(
                 'https://old.reddit.com/', None,
                 'Setting up session via old reddit', 'Session request failed', fatal=False)
@@ -113,6 +113,17 @@ class RedditRIE(InfoExtractor):
         url, video_id = mobj.group('url', 'id')
 
         video_id = self._match_id(url)
+
+        # Fallback for if old reddit session request failed.
+        if not self._is_logged_in and not self._get_cookies('https://www.reddit.com/').get('loid'):
+            self._request_webpage(
+                'https://www.reddit.com/svc/shreddit/%s' % mobj.group('id'), video_id,
+                'Setting up session via shreddit', 'Session request failed', fatal=False,
+                query={
+                    'seeker-session': 'false',
+                    'render-mode': 'partial',
+                    'referer': url,
+                })
 
         try:
             data = self._download_json(
