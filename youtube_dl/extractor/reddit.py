@@ -97,14 +97,33 @@ class RedditRIE(InfoExtractor):
         'only_matching': True,
     }]
 
+    @property
+    def _is_logged_in(self):
+        return bool(self._get_cookies('https://www.reddit.com/').get('reddit_session'))
+
+    def _real_initialize(self):
+        if not self._is_logged_in:
+            # Reddit sets a `loid` cookie for anonymous API access.
+            self._request_webpage(
+                'https://old.reddit.com/', None,
+                'Setting up session via old reddit', 'Session request failed', fatal=False)
+
     def _real_extract(self, url):
         mobj = re.match(self._VALID_URL, url)
         url, video_id = mobj.group('url', 'id')
 
         video_id = self._match_id(url)
 
-        data = self._download_json(
-            url + '/.json', video_id)[0]['data']['children'][0]['data']
+        try:
+            data = self._download_json(
+                url + '/.json', video_id, expected_status=403)[0]['data']['children'][0]['data']
+        except ExtractorError as e:
+            if isinstance(getattr(e, 'cause', None), ValueError):
+                if self._is_logged_in:
+                    raise ExtractorError(
+                        'Your IP address is unable to access the Reddit API', expected=True)
+                self.raise_login_required('Account authentication is required')
+            raise
 
         video_url = data['url']
 
